@@ -158,6 +158,7 @@ test("openPromptHistory seeds the initial query from the current editor text", a
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "resume",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -222,6 +223,7 @@ test("openPromptHistory strips typed resume intent for initial search", async ()
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "copy",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -294,6 +296,7 @@ test("openPromptHistory forwards host keybindings into PromptHistorySelector", a
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "copy",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -358,6 +361,7 @@ test("openPromptHistory refreshes scope-specific index before searching after a 
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "copy",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -426,6 +430,7 @@ test("openPromptHistory prefills an internal resume command when session control
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "copy",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -495,6 +500,7 @@ test("openPromptHistory prefills a restore command for global resume when sessio
       maxResults: 20,
       localMode: "cwd",
       primaryAction: "copy",
+      collapseSkillBlocks: false,
     }),
     createDb: () => ({
       close() {},
@@ -772,4 +778,33 @@ test("handlePromptHistorySelection forks within the active session without switc
     operations.some((entry) => entry.startsWith("switch:")),
     false,
   );
+});
+
+test("handlePromptHistorySelection collapses the skill block pi returns from fork when enabled", async () => {
+  const editorTexts: string[] = [];
+  const expanded =
+    '<skill name="wayfinder" location="/s/wayfinder/SKILL.md">\nReferences are relative to /s/wayfinder.\n\nbody\n</skill>\n\nfind auth';
+
+  const ctx = {
+    sessionManager: {
+      getSessionFile: () => "/tmp/sessions/session-a.jsonl",
+    },
+    ui: {
+      setEditorText: (text: string) => {
+        editorTexts.push(text);
+      },
+      notify: () => {},
+      select: async () => PROMPT_HISTORY_RESUME_CHOICES.fork,
+    },
+    fork: async () => ({ cancelled: false, selectedText: expanded }),
+    switchSession: async () => ({ cancelled: false }),
+  };
+
+  await handlePromptHistorySelection(
+    ctx as never,
+    createSelection({ action: "resume" }),
+    { collapseSkillBlocks: true },
+  );
+
+  assert.deepEqual(editorTexts, ["/skill:wayfinder find auth"]);
 });

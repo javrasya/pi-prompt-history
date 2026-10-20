@@ -1,4 +1,6 @@
 import type { PromptHistoryEntry } from "./db";
+import { buildPromptPreview } from "./parser";
+import { collapseSkillBlock } from "./skill-block";
 
 /**
  * Query/lookup module for prompt-history search.
@@ -10,6 +12,7 @@ export interface SearchOptions {
   query: string;
   cwd: string;
   limit?: number;
+  collapseSkillBlocks?: boolean;
 }
 
 export interface PromptSearchResult extends PromptHistoryEntry {
@@ -45,6 +48,9 @@ export async function searchPrompts(
 ): Promise<PromptSearchResult[]> {
   const query = options.query.trim();
   const limit = options.limit ?? DEFAULT_LIMIT;
+  const display = options.collapseSkillBlocks
+    ? collapseSkillBlockEntry
+    : (entry: PromptHistoryEntry) => entry;
 
   if (!query) {
     return db
@@ -53,6 +59,7 @@ export async function searchPrompts(
         cwd: options.cwd,
         limit,
       })
+      .map(display)
       .map((entry, index) => ({
         ...entry,
         score: Number.MAX_SAFE_INTEGER - index,
@@ -73,6 +80,7 @@ export async function searchPrompts(
 
   const normalizedQuery = query.toLowerCase();
   const scoredCandidates = candidates
+    .map(display)
     .map((entry): PromptSearchResult | null => {
       const exact = scoreExactSubstringMatch(entry.text, normalizedQuery);
       if (exact !== null) {
@@ -103,6 +111,15 @@ export async function searchPrompts(
     });
 
   return scoredCandidates.slice(0, limit);
+}
+
+function collapseSkillBlockEntry(
+  entry: PromptHistoryEntry,
+): PromptHistoryEntry {
+  const text = collapseSkillBlock(entry.text);
+  return text === entry.text
+    ? entry
+    : { ...entry, text, preview: buildPromptPreview(text) };
 }
 
 /**

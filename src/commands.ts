@@ -30,6 +30,7 @@ import type {
   PromptHistorySelector,
   PromptHistorySelectorOptions,
 } from "./selector-ui";
+import { collapseSkillBlock } from "./skill-block";
 
 export { PROMPT_HISTORY_RESUME_CHOICES };
 
@@ -71,6 +72,7 @@ type PromptHistoryResumeRequest = {
   sessionFile: string;
   entryId?: string;
   fallbackText?: string;
+  collapseSkillBlocks?: boolean;
 };
 
 interface OpenPromptHistoryDependencies {
@@ -95,6 +97,7 @@ interface OpenPromptHistoryDependencies {
 
 interface PromptHistorySelectionDependencies {
   copyToClipboard?: (text: string) => void;
+  collapseSkillBlocks?: boolean;
 }
 
 export function registerPromptHistoryCommands(pi: ExtensionAPI): void {
@@ -218,6 +221,7 @@ export async function openPromptHistory(
         cwd: ctx.cwd,
         query,
         limit: config.maxResults,
+        collapseSkillBlocks: config.collapseSkillBlocks,
       }),
     );
 
@@ -264,13 +268,18 @@ export async function openPromptHistory(
       selection.action === "resume" &&
       !supportsPromptHistorySessionControl(ctx)
     ) {
-      await queuePromptHistoryResume(ctx, selection);
+      await queuePromptHistoryResume(
+        ctx,
+        selection,
+        config.collapseSkillBlocks,
+      );
       return;
     }
 
     await handlePromptHistorySelection(
       ctx as ExtensionCommandContext,
       selection,
+      { collapseSkillBlocks: config.collapseSkillBlocks },
     );
   } finally {
     db.close();
@@ -298,7 +307,7 @@ export async function handlePromptHistorySelection(
 
   await performPromptHistoryResume(
     ctx,
-    createPromptHistoryResumeRequest(selection, mode),
+    createPromptHistoryResumeRequest(selection, mode, deps.collapseSkillBlocks),
   );
 }
 
@@ -318,13 +327,18 @@ async function runPromptHistoryResumeCommand(
 async function queuePromptHistoryResume(
   ctx: PromptHistoryResumeSelectionContext,
   selection: PromptHistorySelection,
+  collapseSkillBlocks?: boolean,
 ): Promise<void> {
   const mode = await selectPromptHistoryResumeMode(ctx);
   if (!mode) {
     return;
   }
 
-  const request = createPromptHistoryResumeRequest(selection, mode);
+  const request = createPromptHistoryResumeRequest(
+    selection,
+    mode,
+    collapseSkillBlocks,
+  );
   ctx.ui.setEditorText(buildPromptHistoryResumeCommand(request));
 
   const actionLabel =
@@ -375,13 +389,18 @@ async function performPromptHistoryResume(
   if (forkResult.cancelled) return;
 
   const text = forkResult.selectedText ?? request.fallbackText;
-  if (text !== undefined) ctx.ui.setEditorText(text);
+  if (text !== undefined) {
+    ctx.ui.setEditorText(
+      request.collapseSkillBlocks ? collapseSkillBlock(text) : text,
+    );
+  }
   ctx.ui.notify(`Forked from ${request.scope} history`, "info");
 }
 
 function createPromptHistoryResumeRequest(
   selection: PromptHistorySelection,
   mode: PromptHistoryResumeMode,
+  collapseSkillBlocks?: boolean,
 ): PromptHistoryResumeRequest {
   return {
     mode,
@@ -389,6 +408,7 @@ function createPromptHistoryResumeRequest(
     sessionFile: selection.item.sessionFile,
     entryId: selection.item.id,
     fallbackText: selection.item.text,
+    ...(collapseSkillBlocks ? { collapseSkillBlocks: true } : {}),
   };
 }
 
@@ -432,6 +452,9 @@ function parsePromptHistoryResumeRequest(
     entryId: parsed.entryId,
     fallbackText:
       typeof parsed.fallbackText === "string" ? parsed.fallbackText : undefined,
+    ...(parsed.collapseSkillBlocks === true
+      ? { collapseSkillBlocks: true }
+      : {}),
   };
 }
 

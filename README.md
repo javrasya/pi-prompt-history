@@ -43,6 +43,9 @@ Supported settings:
 - `sessionDir` (`string`) – session JSONL directory to index.
 - `maxResults` (`number`) – number of results returned from search.
 - `primaryAction` (`"copy" | "resume"`) – default selection action in overlay.
+- `collapseSkillBlocks` (`boolean`, default `false`) – show, search, and paste skill
+  prompts the way you typed them (`/skill:name args`) instead of pi's expanded
+  `<skill ...>` block with the full skill body. No reindex needed when toggled.
 
 Example `~/.pi/agent/extensions/prompt-history.json`:
 
@@ -51,7 +54,8 @@ Example `~/.pi/agent/extensions/prompt-history.json`:
   "dbPath": "~/.pi/agent/prompt-history/history.db",
   "sessionDir": "~/.pi/agent/sessions",
   "maxResults": 20,
-  "primaryAction": "copy"
+  "primaryAction": "copy",
+  "collapseSkillBlocks": true
 }
 ```
 

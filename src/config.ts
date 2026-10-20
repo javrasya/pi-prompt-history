@@ -8,6 +8,7 @@ export const DEFAULT_HISTORY_DB_PATH =
 export const DEFAULT_SESSION_DIR = "~/.pi/agent/sessions" as const;
 export const DEFAULT_MAX_RESULTS = 20;
 export const DEFAULT_PRIMARY_ACTION = "copy" as const;
+export const DEFAULT_COLLAPSE_SKILL_BLOCKS = false;
 
 export type PromptHistoryAction = "copy" | "resume";
 
@@ -17,6 +18,7 @@ export type PromptHistoryConfig = {
   maxResults: number;
   localMode: "cwd";
   primaryAction: PromptHistoryAction;
+  collapseSkillBlocks: boolean;
 };
 
 export interface PromptHistoryConfigOptions {
@@ -30,6 +32,7 @@ type PromptHistoryConfigInput = Partial<{
   sessionDir: unknown;
   maxResults: unknown;
   primaryAction: unknown;
+  collapseSkillBlocks: unknown;
 }>;
 
 const DEFAULT_EXTENSION_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -40,6 +43,7 @@ const DEFAULT_PROMPT_HISTORY_CONFIG: PromptHistoryConfig = {
   maxResults: DEFAULT_MAX_RESULTS,
   localMode: "cwd",
   primaryAction: DEFAULT_PRIMARY_ACTION,
+  collapseSkillBlocks: DEFAULT_COLLAPSE_SKILL_BLOCKS,
 };
 
 export function expandHomePath(inputPath: string): string {
@@ -98,6 +102,15 @@ export function resolvePromptHistoryConfig(
       ],
       resolvePrimaryAction,
       DEFAULT_PROMPT_HISTORY_CONFIG.primaryAction,
+    ),
+    collapseSkillBlocks: resolveFirstValid(
+      [
+        projectConfig.collapseSkillBlocks,
+        globalConfig.collapseSkillBlocks,
+        extensionConfig.collapseSkillBlocks,
+      ],
+      resolveBoolean,
+      DEFAULT_PROMPT_HISTORY_CONFIG.collapseSkillBlocks,
     ),
   };
 }
@@ -160,6 +173,10 @@ function resolvePositiveInteger(value: unknown): number | undefined {
   }
 
   return undefined;
+}
+
+function resolveBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function resolvePrimaryAction(value: unknown): PromptHistoryAction | undefined {

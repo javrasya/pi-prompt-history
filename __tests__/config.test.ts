@@ -98,3 +98,35 @@ test("resolvePromptHistoryConfig ignores invalid higher-precedence overrides and
   assert.equal(config.maxResults, 15);
   assert.equal(config.primaryAction, "resume");
 });
+
+test("resolvePromptHistoryConfig reads collapseSkillBlocks, defaulting to off and ignoring non-booleans", () => {
+  const root = mkdtempSync(join(tmpdir(), "prompt-history-config-"));
+  const extensionDir = join(root, "extension");
+  const homeDir = join(root, "home");
+  const cwd = join(root, "project");
+
+  mkdirSync(extensionDir, { recursive: true });
+  mkdirSync(join(homeDir, ".pi", "agent", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  writeJson(join(extensionDir, "config.json"), {});
+
+  assert.equal(
+    resolvePromptHistoryConfig({ cwd, extensionDir, homeDir })
+      .collapseSkillBlocks,
+    false,
+  );
+
+  writeJson(
+    join(homeDir, ".pi", "agent", "extensions", "prompt-history.json"),
+    { collapseSkillBlocks: true },
+  );
+  writeJson(join(cwd, ".pi", "extensions", "prompt-history.json"), {
+    collapseSkillBlocks: "yes",
+  });
+
+  assert.equal(
+    resolvePromptHistoryConfig({ cwd, extensionDir, homeDir })
+      .collapseSkillBlocks,
+    true,
+  );
+});

@@ -2,5 +2,6 @@
   "dbPath": "~/.pi/agent/prompt-history/history.db",
   "sessionDir": "~/.pi/agent/sessions",
   "maxResults": 20,
-  "primaryAction": "copy"
+  "primaryAction": "copy",
+  "collapseSkillBlocks": false
 }
